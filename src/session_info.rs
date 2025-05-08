@@ -3,41 +3,38 @@
  * the user-session should be contatined here.
  **********************************************************/
 
+
+use crate::histories::ComHistory;
+
 pub struct UserInfo {
-  
     keys: bool,
     user_name: String,
     host_name: String,
     current_directory: std::path::PathBuf,
-    //command_history: HashMap<i32, String>,
+    command_history: ComHistory,
     //command: String,
-
 }
 
 impl UserInfo {
     // INITIAL CONSTRUCTOR
-    pub fn new() -> Self {
+    pub fn new(com_hist: ComHistory) -> Self {
         UserInfo {
             keys: true,
             user_name: "anon".to_string(),
             host_name: "unknown".to_string(),
             current_directory: home::home_dir().unwrap(),
+            command_history: com_hist,
         }
-        
     }
-    
+
     // DYNAMIC KEYBOARD SETTING
     pub fn on_keys(&self) -> bool {
         self.keys
     }
     pub fn switch_keys(&mut self) {
-        if false == self.keys {
-    self.keys = true;
-        } else {
-            self.keys = false;
-        }
+        self.keys = !self.keys;
     }
-    
+
     // SESSION INFO
     pub fn user(&self) -> &String {
         &self.user_name
@@ -70,5 +67,25 @@ impl UserInfo {
     pub fn home(&mut self) {
         self.current_directory = home::home_dir().unwrap();
     }
-}
 
+    // COMMAND HISTORY
+    pub fn map_size(&self) -> usize {
+        let size = self.command_history.map_size();
+        size
+    }
+    pub fn add_line(&mut self, line: &String) {
+            self.command_history.add_line(&line);
+    }
+    pub fn show_history(&mut self) {
+        self.command_history.show_history();
+    }
+    pub fn get_history(&self, num: usize) -> String {
+        let line = self.command_history.get_history(num);
+        line
+    }
+    pub fn drop_line(&mut self) {
+        self.command_history.drop_line();
+    }
+
+    
+}

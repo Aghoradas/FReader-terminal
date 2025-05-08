@@ -1,7 +1,7 @@
 /*****************************************************************
- * Beginning practice and learning in Rust programming language.
- *
- *****************************************************************/
+*  Beginning practice and learning in Rust programming language.
+*
+******************************************************************/
 
 use ::colored::Colorize;
 use crossterm::event::{self, read, Event, KeyCode};
@@ -9,7 +9,7 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode, window_size, Clear,
 use crossterm::{cursor, execute};
 use session_info::UserInfo;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{Read, Write, BufReader, BufRead};
 
 mod histories;
 mod session_info;
@@ -23,18 +23,35 @@ fn hostname_render() -> String {
 /* SESSION BULDER
 ********************/
 fn session_builder() -> UserInfo {
-    let mut current_session = UserInfo::new();
-    let username = current_session.directory().clone().file_name().unwrap()
-                              .to_os_string().into_string()
-                              .expect("anon");
+    let command_hist = histories::new_hist();
+
+
+    let mut current_session = UserInfo::new(command_hist);
+    let username = current_session
+        .directory()
+        .clone()
+        .file_name()
+        .unwrap()
+        .to_os_string()
+        .into_string()
+        .expect("anon");
     let host = hostname_render();
     current_session.new_user(username);
     current_session.new_host(host);
+
+    // loading history
+    let file_obj = std::fs::File::open("./src/histories/history.dat")
+        .expect("-error accessing history.dat");
+    let file_reader = BufReader::new(file_obj);
+    for line in file_reader.lines() {
+        current_session.add_line(&line.unwrap().to_string());
+    }
+    
     current_session
 }
 
 /* Help menu
- *************/
+**************/
 fn help(command_line: &[String]) {
     if command_line.len() < 2 {
         println!();
@@ -45,7 +62,7 @@ fn help(command_line: &[String]) {
         println!("- cd                   -- changes directory to home/user directory");
         println!("- cd [directory name]  -- changes directory to [directory name]");
         println!("- hist                 -- lists recently used commands");
-        println!("- keypress             -- [EXPERIMENTAL] dynamic input mode");
+        println!("- keypress             -- toggle off/on dynamic typing (default: on)");
     } else if command_line[1] == "cls" {
         println!("\n-clear    clears the screen");
     } else if command_line[1] == "ls" {
@@ -61,35 +78,37 @@ fn help(command_line: &[String]) {
         println!("  be able to re-enact these commands from the list.");
         println!("          --see keypress command for related topics");
     } else if command_line[1] == "keypress" {
-        println!("\n-keypress    turns dynamic keyboard off.");
+        println!("\n-keypress    turns dynamic keyboard off. The dynamic aspect of the input");
+        println!("  method is experimental for now, (command history, etc).");
     } else {
-        println!("\n-help {}    is not a command, or is not yet included in the help docs", command_line[1].red());
+        println!(
+            "\n-help {}    is not a command, or is not yet included in the help docs",
+            command_line[1].red()
+        );
         println!("      report to developer if it needs to be. Thank you.");
     }
 }
 
 /* CLEAR SCREEN
- ****************/
+*****************/
 fn cls() {
     std::process::Command::new("clear").status().unwrap();
 }
 
 /* LIST MECHANICS
- ******************/
+*******************/
 fn ls(current_dir: &std::path::PathBuf) {
-    let win_size = window_size().unwrap().columns.clone();
+    let win_size = window_size().unwrap().columns;
     let mut win_width = win_size;
     let paths = fs::read_dir(current_dir).expect("-none");
     for path in paths {
         let entry = path.unwrap();
         let path_dir = entry.path().is_dir();
         let file_path: String = entry.file_name().into_string().unwrap();
-        let path_size16 = u16::try_from(file_path.len()+3).unwrap();
-        if path_dir {
-            if !file_path.as_str().starts_with('.') {
-                print!(" [{}]", file_path.bright_blue());
-                win_width = win_width - path_size16;
-            }
+        let path_size16 = u16::try_from(file_path.len() + 2).unwrap();
+        if path_dir && !file_path.as_str().starts_with('.') {
+            print!(" {} ", file_path.bright_blue().underline());
+            win_width -= path_size16;
         }
         if win_width < path_size16 {
             win_width = win_size;
@@ -100,7 +119,7 @@ fn ls(current_dir: &std::path::PathBuf) {
     for path in paths {
         let entry = path.unwrap();
         let file_path: String = entry.file_name().into_string().unwrap();
-        let path_size16 = u16::try_from(file_path.len()+3).unwrap();
+        let path_size16 = u16::try_from(file_path.len() + 2).unwrap();
         if win_width < path_size16 {
             win_width = win_size;
             println!();
@@ -108,8 +127,8 @@ fn ls(current_dir: &std::path::PathBuf) {
         if entry.path().is_file() {
             let file_path: String = entry.file_name().into_string().unwrap();
             if !file_path.as_str().starts_with('.') {
-                print!(" {}  ", file_path.white());
-                win_width = win_width - path_size16;
+                print!(" {} ", file_path.white());
+                win_width -= path_size16;
             }
         }
     }
@@ -117,13 +136,12 @@ fn ls(current_dir: &std::path::PathBuf) {
 }
 
 /* CHANGE DISK (CD) MECHANICS
- ******************************/
+*******************************/
 fn cd(dir_change: &str, current_session: &mut UserInfo) -> bool {
     if dir_change == ".." {
         current_session.back_directory();
         return true;
     }
-
     let mut test_dir = current_session.directory().clone();
     test_dir.push(dir_change);
 
@@ -136,14 +154,14 @@ fn cd(dir_change: &str, current_session: &mut UserInfo) -> bool {
     }
 }
 
-/* KEY EVENT
- *************/
-fn check_key(command_hist: &mut histories::ComHistory, command: &mut String) -> String {
-    let mut hist_num = command_hist.map_size();
+/* DYNAMIC KEYPRESS
+**********************/
+fn check_key(current_session: &mut UserInfo, command: &mut String) -> String {
+    let mut hist_num = current_session.map_size();
     enable_raw_mode().unwrap();
     let mut stdout = std::io::stdout();
     let mut com_pos;
-    if command.len() > 0 {
+    if !command.is_empty() {
         com_pos = command.len();
     } else {
         com_pos = 0;
@@ -151,23 +169,23 @@ fn check_key(command_hist: &mut histories::ComHistory, command: &mut String) -> 
     loop {
         let _pos_limit = command.len();
         if let Event::Key(key_event) = read().unwrap() {
-            
             match key_event.code {
                 KeyCode::Enter => {
                     stdout.flush().unwrap();
                     break;
                 }
                 KeyCode::Up => {
-                    if hist_num >= 1  {
-                        let init_num = command.trim().len(); 
+                    if hist_num >= 1 {
+                        let init_num = command.trim().len();
                         if init_num > 0 {
                             let init_num16: u16 = u16::try_from(init_num).unwrap();
-                            execute!(stdout, cursor::MoveLeft(init_num16)).expect("-nope");
+                            execute!(stdout, cursor::MoveLeft(init_num16 + 1)).expect("-nope");
                             execute!(stdout, Clear(ClearType::UntilNewLine)).expect("-nope");
+                        } else {
+                            execute!(stdout, cursor::MoveLeft(1)).expect("-nope");
                         }
-                        *command = command_hist.get_history(hist_num);
-                        write!(stdout, "{}", command_hist.get_history(hist_num).trim())
-                            .expect("-nope");
+                        *command = current_session.get_history(hist_num);
+                        write!(stdout, " {}", current_session.get_history(hist_num)).expect("-nope");
                         if hist_num != 1 {
                             hist_num -= 1;
                         }
@@ -178,20 +196,23 @@ fn check_key(command_hist: &mut histories::ComHistory, command: &mut String) -> 
                     }
                 }
                 KeyCode::Down => {
-                    if hist_num < command_hist.map_size() {
-                        let init_num = command.len();
+                    if hist_num <= current_session.map_size() {
+                        let init_num = command.trim().len();
                         if init_num > 0 {
                             let init_num16: u16 = u16::try_from(init_num).unwrap();
-                            execute!(stdout, cursor::MoveLeft(init_num16)).expect("-nope");
+                            execute!(stdout, cursor::MoveLeft(init_num16 + 1)).expect("-nope");
                             execute!(stdout, Clear(ClearType::UntilNewLine)).expect("-nope");
+                        } else {
+                            execute!(stdout, cursor::MoveLeft(1)).expect("-nope");
                         }
-                        *command = command_hist.get_history(hist_num);
-                        write!(stdout, "{}", command_hist.get_history(hist_num).trim())
+                        *command = current_session.get_history(hist_num);
+                        write!(stdout, " {}", current_session.get_history(hist_num))
                             .expect("-nope");
-                        if hist_num != command_hist.map_size() {
+                        if hist_num < current_session.map_size() {
                             hist_num += 1;
                         }
                         stdout.flush().unwrap();
+                        com_pos = command.len();
                     } else {
                         stdout.flush().unwrap();
                     }
@@ -237,7 +258,6 @@ fn check_key(command_hist: &mut histories::ComHistory, command: &mut String) -> 
                     execute!(stdout, cursor::RestorePosition).unwrap();
                     stdout.flush().unwrap();
                     com_pos = command.len();
-
                 }
                 KeyCode::Home => {
                     let num: usize = command.len();
@@ -253,50 +273,58 @@ fn check_key(command_hist: &mut histories::ComHistory, command: &mut String) -> 
             }
         }
     }
-   disable_raw_mode().unwrap();
+    disable_raw_mode().unwrap();
     println!();
     command.to_string()
 }
 
 /* MAIN ENTRY
- **************/
+***************/
 fn main() {
     let mut hist_entry: String = "".to_string();
     cls();
 
-    let mut command_hist = histories::new_hist();
     let mut current_session = session_builder();
     let mut command = String::new();
-
 
     println!("    ..{}..", "FReader".cyan());
     println!(" *****************");
     loop {
-        let dir_display = current_session.directory().file_name().unwrap().to_str().clone();
-        print!("[{}@{}: {:}]$ ", current_session.user().yellow(), current_session.host(), dir_display.unwrap());
+        let dir_display = current_session
+            .directory()
+            .file_name()
+            .unwrap()
+            .to_str();
+        print!(
+            "[{}@{}: {:}]$ ",
+            current_session.user().yellow(),
+            current_session.host(),
+            dir_display.unwrap()
+        );
         std::io::stdout().flush().expect("Erm...");
 
-        if hist_entry.len() > 0 {
+        if !hist_entry.is_empty() {
             command = hist_entry.clone();
             hist_entry.clear();
 
             enable_raw_mode().unwrap();
-            write!(std::io::stdout(), "{}", command.trim().green())
-                        .expect("-nope");
+            write!(std::io::stdout(), "{}", command.trim().green()).expect("-nope");
             execute!(std::io::stdout(), cursor::MoveToNextLine(1)).unwrap();
             std::io::stdout().flush().unwrap();
             disable_raw_mode().unwrap();
-
-        } else if current_session.on_keys() == false {
+        } else if !current_session.on_keys() {
             std::io::stdin()
                 .read_line(&mut command)
                 .expect("Failed to read line");
             command = command.trim_end().to_string();
         } else {
-            command = check_key(&mut command_hist, &mut command);
+            command = check_key(&mut current_session, &mut command);
         }
 
         let command_line: Vec<String> = command.split_whitespace().map(String::from).collect();
+        if command.trim().len() > 0 {
+            current_session.add_line(&command);
+        }
         if let Some(first_word) = command_line.first() {
             match first_word.as_str() {
                 "exit" => {
@@ -338,7 +366,7 @@ fn main() {
                     }
                 }
                 "ls" => {
-                    ls(&current_session.directory());
+                    ls(current_session.directory());
                 }
                 "cd" => {
                     if command_line.len() > 1 {
@@ -352,10 +380,10 @@ fn main() {
                 }
                 "hist" => {
                     match command_line.len() {
-                        1 => command_hist.show_history(),
+                        1 => current_session.show_history(),
                         2 => {
                             let num_entry: usize = command_line[1].parse().unwrap();
-                            hist_entry = command_hist.get_history(num_entry);
+                            hist_entry = current_session.get_history(num_entry);
                         }
                         _ => println!("-no history command {}", command_line[2]),
                     };
@@ -368,7 +396,6 @@ fn main() {
         else {
             println!("-no input detected");
         }
-        command_hist.add_line(&command);
         command.clear();
     } // main loop
 }
