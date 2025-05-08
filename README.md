@@ -1,2 +1,1 @@
-FReader is a cli terminal program that has a few features to it,
-mostly for becoming aquainted with Rust.
+FReader is a command-line terminal application written in Rust. Originally started as a learning project, it now serves as a sandbox for experimenting with Rust features and CLI tool design. While simple in scope, FReader includes a growing set of utilities and serves as a foundation for testing out various programming concepts in the language.
