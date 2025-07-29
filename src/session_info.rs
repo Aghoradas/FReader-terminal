@@ -1,7 +1,7 @@
 /**********************************************************
- * Any amount of information that the information about
- * the user-session should be contatined here.
- **********************************************************/
+* Any amount of information that the information about
+* the user-session should be contained here.
+***********************************************************/
 
 
 use crate::histories::ComHistory;
@@ -16,7 +16,10 @@ pub struct UserInfo {
 }
 
 impl UserInfo {
-    // INITIAL CONSTRUCTOR
+
+    /* INITIAL CONSTRUCTOR
+    *************************/
+
     pub fn new(com_hist: ComHistory) -> Self {
         UserInfo {
             keys: true,
@@ -27,7 +30,9 @@ impl UserInfo {
         }
     }
 
-    // DYNAMIC KEYBOARD SETTING
+    /* DYNAMIC KEYBOARD SETTING
+    ******************************/
+
     pub fn on_keys(&self) -> bool {
         self.keys
     }
@@ -35,7 +40,9 @@ impl UserInfo {
         self.keys = !self.keys;
     }
 
-    // SESSION INFO
+    /* SESSION INFO
+    ******************/
+
     pub fn user(&self) -> &String {
         &self.user_name
     }
@@ -49,7 +56,9 @@ impl UserInfo {
         self.host_name = name;
     }
 
-    // DIRECTORY
+    /* DIRECTORY
+    ***************/
+
     pub fn directory(&self) -> &std::path::PathBuf {
         &self.current_directory
     }
@@ -68,10 +77,11 @@ impl UserInfo {
         self.current_directory = home::home_dir().unwrap();
     }
 
-    // COMMAND HISTORY
+    /* COMMAND HISTORY
+    *********************/
+
     pub fn map_size(&self) -> usize {
-        let size = self.command_history.map_size();
-        size
+        self.command_history.map_size()
     }
     pub fn add_line(&mut self, line: &String) {
             self.command_history.add_line(&line);
@@ -80,12 +90,17 @@ impl UserInfo {
         self.command_history.show_history();
     }
     pub fn get_history(&self, num: usize) -> String {
-        let line = self.command_history.get_history(num);
-        line
+        self.command_history.get_history(num)
     }
+
+    /* Unused impl-functions
+    ***************************
+
     pub fn drop_line(&mut self) {
         self.command_history.drop_line();
     }
-
-    
+    pub fn is_end(&mut self, num: usize) -> bool {
+        self.command_history.is_end(num)
+    }
+    */
 }
