@@ -12,6 +12,7 @@ pub struct UserInfo {
     host_name: String,
     current_directory: std::path::PathBuf,
     command_history: ComHistory,
+    column_list: bool,
     //command: String,
 }
 
@@ -27,6 +28,7 @@ impl UserInfo {
             host_name: "unknown".to_string(),
             current_directory: home::home_dir().unwrap(),
             command_history: com_hist,
+            column_list: false
         }
     }
 
@@ -54,6 +56,17 @@ impl UserInfo {
     }
     pub fn new_host(&mut self, name: String) {
         self.host_name = name;
+    }
+    
+    pub fn ls_type(&self) -> &bool {
+        &self.column_list
+    }
+    pub fn switch_ls_type(&mut self) {
+        if self.column_list == true {
+            self.column_list = false;
+        } else {
+            self.column_list = true;
+        }
     }
 
     /* DIRECTORY

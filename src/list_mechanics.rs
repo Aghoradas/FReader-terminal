@@ -6,7 +6,6 @@
 use ::colored::Colorize;
 use crossterm::cursor;
 use crossterm::{execute, terminal::window_size};
-use std::io::Write;
 use std::{fs::{self}, usize};
 
 
@@ -18,16 +17,14 @@ fn column_length(current_dir: &std::path::PathBuf) -> (u16, u16) {
     for path in paths {
         let entry = path.unwrap().file_name()
                         .into_string().unwrap();
-        path_size = entry.len(); 
+        path_size = entry.len();
         if path_size > size_column && !entry.starts_with('.') {
             size_column = path_size.clone();
-            println!("{}", entry);
         } else if entry.starts_with('.'){
             skip_count += 1;
         }
-        
+
     }
-    println!("{}", size_column);
     let column_size = 2 + u16::try_from(size_column)
         .unwrap();
 
@@ -36,7 +33,7 @@ fn column_length(current_dir: &std::path::PathBuf) -> (u16, u16) {
 }
 
 
-// Create neat columns of alphabetic list
+// Create neat columns of directories.
 pub fn list_columns(current_dir: &std::path::PathBuf) {
     let pad: u16 = 0;
     let (column_size, skip_count) = column_length(current_dir);
@@ -44,24 +41,28 @@ pub fn list_columns(current_dir: &std::path::PathBuf) {
     let win_size = window_size().unwrap().columns;
 
 
-    let mut win_width = win_size;
+    let win_width = win_size;
     let paths = fs::read_dir(current_dir).expect("-none")
         .collect::<Result<Vec<_>, _>>().expect("-none");
     let entry_amount = u16::try_from(paths.len()).unwrap() - skip_count;
-    println!("entry_amount:   {}", entry_amount);
 
-
+    // println!("entry_amount:   {}", entry_amount);
     let column_number:  u16 = win_width / columns_width;
-    println!("column_number:  {}", column_number);
+    // println!("column_number:  {}", column_number);
     let row_per_column: u16 = entry_amount / column_number;
-    println!("row_per_column: {}", row_per_column);
-    let remaining_row:    u16 = entry_amount - (column_number * row_per_column);
-    println!("remaining_row:  {}", remaining_row);
+    // println!("row_per_column: {}", row_per_column);
+    let mut remaining_row:    u16 = entry_amount - (column_number * row_per_column);
+    // println!("remaining_row:  {}", remaining_row);
 
+    let return_cursor: u16;
+    if remaining_row == 0 {
+        return_cursor = row_per_column;
+    } else {
+        return_cursor = row_per_column + 1;
+    }
 
     let mut row:      u16 = 0;
-    let mut column:   u16 = 1;
-    let mut row_flag: u16 = 0;
+    let mut column:   u16 = 0;
     for path in paths {
 
         let _path_dir = path.path().is_dir();
@@ -69,23 +70,31 @@ pub fn list_columns(current_dir: &std::path::PathBuf) {
 
         if !file_path.as_str().starts_with('.') {
             execute!(std::io::stdout(), cursor::MoveToColumn(column)).unwrap();
+            row += 1;
 
             if row <= row_per_column {
-                row += 1;
                 println!("{}", file_path.bright_blue().underline());
-            } else if remaining_row >= column && row_flag == 0 {
-                row_flag = 1;
+            } else if remaining_row > 0 {
+                remaining_row -= 1;
+                column += columns_width;
                 println!("{}", file_path.bright_blue().underline());
+                execute!(std::io::stdout(), cursor::MoveToPreviousLine(row)).unwrap();
+                row = 0;
+                execute!(std::io::stdout(), cursor::MoveToColumn(column)).unwrap();
             } else {
                 column += columns_width;
+                execute!(std::io::stdout(), cursor::MoveToPreviousLine(row-1)).unwrap();
+                row = 0;
                 execute!(std::io::stdout(), cursor::MoveToColumn(column)).unwrap();
-                execute!(std::io::stdout(), cursor::MoveToPreviousLine(row)).unwrap();
-                row = 1;
-                println!("{}", file_path.bright_blue().underline());
+
             }
 
         }
     }
+
+
+    execute!(std::io::stdout(), cursor::MoveToColumn(0)).unwrap();
+    execute!(std::io::stdout(), cursor::MoveToNextLine(return_cursor)).unwrap();
 }
 
 
@@ -97,11 +106,10 @@ pub fn list(current_dir: &std::path::PathBuf) {
 
 
     let mut win_width = win_size;
-    println!("{}", win_width);
 
 
     let paths = fs::read_dir(current_dir).expect("-none");
-    
+
     for path in paths {
         let entry = path.unwrap();
         let path_dir = entry.path().is_dir();
@@ -119,7 +127,7 @@ pub fn list(current_dir: &std::path::PathBuf) {
                 while cur_point > 0 {
                     cur_point -= 1;
                     print!("{}", " ");
-                } 
+                }
             }
         } else if entry.path().is_file() {
             let file_path: String = entry.file_name().into_string().unwrap();
@@ -131,7 +139,7 @@ pub fn list(current_dir: &std::path::PathBuf) {
                     while cur_point > 0 {
                         cur_point -= 1;
                         print!("{}", " ");
-                    } 
+                    }
                 }
             }
         }

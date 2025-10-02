@@ -64,6 +64,7 @@ fn help(command_line: &[String]) {
         println!("- help                 -- this help menu");
         println!("- clear                -- clears the screen");
         println!("- ls                   -- lists directories in current path");
+        println!("- org                  -- switches 'ls' function to neat columns");
         println!("- cd                   -- changes directory to home/user directory");
         println!("- cd [directory name]  -- changes directory to [directory name]");
         println!("- hist                 -- lists recently used commands");
@@ -72,6 +73,9 @@ fn help(command_line: &[String]) {
         println!("\n-clear    clears the screen");
     } else if command_line[1] == "ls" {
         println!("\n-ls    lists directories in current path");
+    } else if command_line[1] == "org" {
+        println!("\n-org   toggles 'ls' from listing directories out into rows to");
+        println!("listing them out in neatly arranged columns. [on/off]");
     } else if command_line[1] == "cd" {
         println!("\n-cd    changes directory to home/[user_directory]");
         println!("When the 'cd' command is used with an arguemn it will open");
@@ -208,10 +212,15 @@ fn main() {
                     }
                 }
                 "ls" => {
-                    list(current_session.directory());
+                    if *current_session.ls_type() == true {
+                        list_columns(current_session.directory());
+                    } else {
+                        list(current_session.directory());
+                    }
                 }
                 "org" => {
-                    list_columns(current_session.directory());
+                    current_session.switch_ls_type();
+
                 }
                 "cd" => {
                     if command_line.len() > 1 {
