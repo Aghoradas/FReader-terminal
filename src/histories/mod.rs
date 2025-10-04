@@ -1,5 +1,5 @@
 /**********************************************************
-* Any functionality of the history of commands will be 
+* Any functionality of the history of commands will be
 * foun here.
 ***********************************************************/
 
@@ -43,33 +43,6 @@ impl ComHistory {
         self.history_collection.len()
     }
 
-    /* Unused impl-functions
-    ***************************
-
-    pub fn drop_line(&mut self) {
-        let which = i32::try_from(self.history_collection.len()).unwrap();
-        self.history_collection.remove(&which).unwrap();
-    }
-    pub fn is_end(&mut self, num:usize) -> bool {
-        let num32 = i32::try_from(num).unwrap();
-
-        let entry = self.history_collection.last_entry();
-        if *entry.unwrap().key() == num32 {
-            true
-        } else {
-            false
-        }
-    }
-    pub fn get_size(&self, num: usize) -> usize {
-        let num32 = &i32::try_from(num - 1).unwrap();
-        let size = self.history_collection[num32].trim().len();
-        size
-    }
-    pub fn is_empty(&self) -> bool {
-        let empty = self.history_collection.is_empty();
-        empty
-    }
-    */
 }
 
 pub fn new_hist() -> ComHistory {

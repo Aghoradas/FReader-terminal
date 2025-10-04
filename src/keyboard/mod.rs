@@ -13,7 +13,8 @@ use std::io::Write;
 use crate::session_info::UserInfo;
 
 pub fn dynamic_keyboard(current_session: &mut UserInfo, command: &mut String) -> String {
-    let mut hist_num = current_session.map_size();
+    let map_size = current_session.map_size();
+    let mut hist_num = map_size;
     enable_raw_mode().unwrap();
     let mut stdout = std::io::stdout();
     let mut com_pos;
@@ -53,8 +54,8 @@ pub fn dynamic_keyboard(current_session: &mut UserInfo, command: &mut String) ->
                     }
                 }
                 KeyCode::Down => {
-                    if hist_num <= current_session.map_size() {
-                        if hist_num <= current_session.map_size() {
+                    if hist_num <= map_size {
+                        if hist_num <= map_size {
                             hist_num += 1;
                         }
                         let init_num = command.trim().len();
@@ -75,7 +76,7 @@ pub fn dynamic_keyboard(current_session: &mut UserInfo, command: &mut String) ->
                     }
                 }
                 KeyCode::Char(letter) => {
-                    if key_event.modifiers == event::KeyModifiers::CONTROL && key_event.code == KeyCode::Char('c') {
+                    if key_event.modifiers == event::KeyModifiers::CONTROL && key_event.code == KeyCode::Char('e') {
                         execute!(stdout, cursor::MoveToNextLine(1)).expect("-nope");
                         disable_raw_mode().unwrap();
                         std::process::exit(0);

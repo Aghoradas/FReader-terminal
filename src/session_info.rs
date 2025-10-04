@@ -6,15 +6,22 @@
 
 use crate::histories::ComHistory;
 
-pub struct UserInfo {
+/* USER INFO AND SETTINGS
+****************************/
+
+pub struct UserSettings {
+    column_list: bool,
     keys: bool,
+}
+
+pub struct UserInfo {
     user_name: String,
     host_name: String,
     current_directory: std::path::PathBuf,
     command_history: ComHistory,
-    column_list: bool,
-    //command: String,
+    settings: UserSettings
 }
+
 
 impl UserInfo {
 
@@ -23,12 +30,14 @@ impl UserInfo {
 
     pub fn new(com_hist: ComHistory) -> Self {
         UserInfo {
-            keys: true,
             user_name: "anon".to_string(),
             host_name: "unknown".to_string(),
             current_directory: home::home_dir().unwrap(),
             command_history: com_hist,
-            column_list: false
+            settings: UserSettings {
+                column_list: (false), 
+                keys: (true) 
+            }
         }
     }
 
@@ -36,10 +45,10 @@ impl UserInfo {
     ******************************/
 
     pub fn on_keys(&self) -> bool {
-        self.keys
+        self.settings.keys
     }
     pub fn switch_keys(&mut self) {
-        self.keys = !self.keys;
+        self.settings.keys = !self.settings.keys;
     }
 
     /* SESSION INFO
@@ -59,13 +68,13 @@ impl UserInfo {
     }
     
     pub fn ls_type(&self) -> &bool {
-        &self.column_list
+        &self.settings.column_list
     }
     pub fn switch_ls_type(&mut self) {
-        if self.column_list == true {
-            self.column_list = false;
+        if self.settings.column_list == true {
+            self.settings.column_list = false;
         } else {
-            self.column_list = true;
+            self.settings.column_list = true;
         }
     }
 
@@ -106,14 +115,4 @@ impl UserInfo {
         self.command_history.get_history(num)
     }
 
-    /* Unused impl-functions
-    ***************************
-
-    pub fn drop_line(&mut self) {
-        self.command_history.drop_line();
-    }
-    pub fn is_end(&mut self, num: usize) -> bool {
-        self.command_history.is_end(num)
-    }
-    */
 }

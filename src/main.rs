@@ -13,10 +13,15 @@ mod histories;
 mod session_info;
 mod keyboard;
 mod list_mechanics;
+mod shell_error;
 
 use session_info::UserInfo;
 use list_mechanics::list;
 use list_mechanics::list_columns;
+use shell_error::ProgramError;
+use shell_error::ProgResult;
+
+
 
 
 /* RENDERING THE HOST NAME
@@ -28,7 +33,7 @@ fn hostname_render() -> String {
 
 /* SESSION BUIILDER
 ********************/
-fn session_builder() -> UserInfo {
+fn session_builder() -> ProgResult<UserInfo>{
     let command_hist = histories::new_hist();
     let mut current_session = UserInfo::new(command_hist);
     let username = current_session
@@ -44,14 +49,20 @@ fn session_builder() -> UserInfo {
     current_session.new_host(host);
 
     // loading history
-    let file_obj = std::fs::File::open("./src/histories/history.dat")
+    let path = "./src/histories/history.dat";
+    if !std::fs::exists(path)? {
+        return Err(ProgramError::Construct("missing history.dat".into()));
+    }
+
+    let file_obj = std::fs::File::open(path)
         .expect("-error accessing history.dat");
     let file_reader = BufReader::new(file_obj);
     for line in file_reader.lines() {
         current_session.add_line(&line.unwrap().to_string());
+ 
     }
     
-    current_session
+    Ok(current_session)
 }
 
 
@@ -69,26 +80,29 @@ fn help(command_line: &[String]) {
         println!("- cd [directory name]  -- changes directory to [directory name]");
         println!("- hist                 -- lists recently used commands");
         println!("- keypress             -- toggle on/off dynamic typing (default: on)");
+    } else if command_line[1] == "exit" {
+        println!("\n-exit    this exits FReader. This can also be done by holding CTRL");
+        println!("         button down and pressing 'e'.");
     } else if command_line[1] == "cls" {
         println!("\n-clear    clears the screen");
     } else if command_line[1] == "ls" {
         println!("\n-ls    lists directories in current path");
     } else if command_line[1] == "org" {
-        println!("\n-org   toggles 'ls' from listing directories out into rows to");
-        println!("listing them out in neatly arranged columns. [on/off]");
+        println!("\n-org    toggles 'ls' from listing directories out into rows to");
+        println!("        listing them out in neatly arranged columns. [on/off]");
     } else if command_line[1] == "cd" {
         println!("\n-cd    changes directory to home/[user_directory]");
-        println!("When the 'cd' command is used with an arguemn it will open");
-        println!("the directory corresponding to that argument: as in 'cd Documents");
-        println!("will open the 'Documents' directory in current path, if it exists.");
+        println!("       When the 'cd' command is used with an argument it will open");
+        println!("       the directory corresponding to that argument: as in 'cd Documents'");
+        println!("       will open the 'Documents' directory in current path, if it exists.");
     } else if command_line[1] == "hist" {
         println!("\n-hist    this without any other arguments will list all previously");
-        println!("  typed commands. There will be a way in the future to be able to");
-        println!("  be able to re-enact these commands from the list.");
-        println!("          --see keypress command for related topics");
+        println!("         typed commands. There will be a way in the future to be able to");
+        println!("         be able to re-enact these commands from the list.");
+        println!("             --see keypress command for related topics");
     } else if command_line[1] == "keypress" {
         println!("\n-keypress    turns dynamic keyboard off. The dynamic aspect of the input");
-        println!("  method is experimental for now, (command history, etc).");
+        println!("             method is experimental for now, (command history, etc).");
     } else {
         println!(
             "\n-help {}    is not a command, or is not yet included in the help docs",
@@ -132,7 +146,17 @@ fn main() {
     let mut hist_entry: String = "".to_string();
     cls();
 
-    let mut current_session = session_builder();
+    let new_session = session_builder();
+    match &new_session {
+        Ok(session) => {
+            println!("Success: {}", session.user());
+        },
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return;
+        }
+    }
+    let mut current_session = new_session.unwrap();
     let mut command = String::new();
 
     loop {
